@@ -53,27 +53,15 @@ use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
 use Zerotoprod\DocgenVisitor\DocgenVisitor;
 
-// File path of the PHP script to modify
-$filePath = 'User.php';
-
-// Read the contents of the file
-$code = file_get_contents($filePath);
-if ($code === false) {
-    die("Failed to read the file: {$filePath}");
-}
-
-$changes = []; // Array to collect changes
-$parser = (new ParserFactory())->createForHostVersion();
-
+$comments = ['This is an updated class docblock'];
+$changes = []; // This is used to accumulate changes from the DocgenVisitor
 $traverser = new NodeTraverser();
 $traverser->addVisitor(
     new DocgenVisitor(
         function (Node $node) {
-            if ($node instanceof Node\Stmt\Class_) {
-                return ['This is an updated class comment'];
-            }
-            if ($node instanceof Node\Stmt\ClassMethod) {
-                return ['This is an updated method comment'];
+            // Filter comments to specific types
+            if ($node instanceof Node\Stmt\Class_) use ($comments) {
+                return $comments;
             }
             return [];
         },
@@ -81,21 +69,24 @@ $traverser->addVisitor(
     )
 );
 
-$stmts = $parser->parse($code);
-$traverser->traverse($stmts);
+// Apply the visitor to a php file.
+$traverser->traverse(
+    (new ParserFactory())->createForHostVersion()
+        ->parse(file_get_contents('User.php'));
+);
 
-// Apply changes to the code string
-$newCode = $code;
+$updatedCode = null;
 foreach ($changes as $change) {
-    $newCode = substr_replace($newCode, $change->text, $change->start, $change->end - $change->start + 1);
+    // Replace the old docblock text with the new one
+    $updatedCode = substr_replace(
+        $originalCode,
+        $change->text,
+        $change->start,
+        $change->end - $change->start + 1
+    );
 }
 
-// Write the modified code back to the same file
-if (file_put_contents($filePath, $newCode) === false) {
-    die("Failed to write changes back to the file: {$filePath}");
-}
-
-echo "File updated with new docblocks\n";
+file_put_contents($filePath, $updatedCode);
 ```
 
 ## Contributing
