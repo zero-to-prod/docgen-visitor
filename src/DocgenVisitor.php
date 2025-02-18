@@ -6,17 +6,26 @@ use Closure;
 use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 
+/**
+ * @link https://github.com/zero-to-prod/docgen-visitor
+ */
 class DocgenVisitor extends NodeVisitorAbstract
 {
     private Closure $callback;
     private array $changes;
 
+    /**
+     * @link https://github.com/zero-to-prod/docgen-visitor
+     */
     public function __construct(Closure $callback, array &$changes)
     {
         $this->callback = $callback;
         $this->changes = &$changes;
     }
 
+    /**
+     * @link https://github.com/zero-to-prod/docgen-visitor
+     */
     public function enterNode(Node $node): void
     {
         $lines = ($this->callback)($node);
