@@ -1,14 +1,14 @@
 {
-  "name": "zero-to-prod/:slug",
-  "description": ":description",
+  "name": "zero-to-prod/docgen-visitor",
+  "description": "A PHP AST visitor for automatically generating or updating docblocks in PHP source code.",
   "license": "MIT",
   "type": "library",
   "keywords": [
     "zero-to-prod",
-    ":slug"
+    "docgen-visitor"
   ],
   "readme": "./README.md",
-  "time": ":time",
+  "time": "2025-02-18",
   "authors": [
     {
       "name": "David Smith",
@@ -17,13 +17,13 @@
       "role": "maintainer"
     }
   ],
-  "homepage": "https://github.com/zero-to-prod/:slug",
+  "homepage": "https://github.com/zero-to-prod/docgen-visitor",
   "support": {
     "email": "dave0016@gmail.com",
-    "issues": "https://github.com/zero-to-prod/:slug/issues",
-    "source": "https://github.com/zero-to-prod/:slug",
-    "docs": "https://zero-to-prod.github.io/:slug/",
-    "security": "https://github.com/zero-to-prod/:slug/blob/main/SECURITY.md"
+    "issues": "https://github.com/zero-to-prod/docgen-visitor/issues",
+    "source": "https://github.com/zero-to-prod/docgen-visitor",
+    "docs": "https://zero-to-prod.github.io/docgen-visitor/",
+    "security": "https://github.com/zero-to-prod/docgen-visitor/blob/main/SECURITY.md"
   },
   "funding": [
     {
@@ -32,14 +32,15 @@
     }
   ],
   "require": {
-    "php": ">=7.1"
+    "php": ">=8.1",
+    "zero-to-prod/dock": "^1.0"
   },
   "require-dev": {
     "phpunit/phpunit": "<12.0"
   },
   "autoload": {
     "psr-4": {
-      "Zerotoprod\\:namespace\\": "src/"
+      "Zerotoprod\\DocgenVisitor\\": "src/"
     }
   },
   "autoload-dev": {
@@ -48,6 +49,6 @@
     }
   },
   "bin": [
-    "bin/:slug"
+    "bin/docgen-visitor"
   ]
 }
