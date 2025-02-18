@@ -6,6 +6,7 @@ use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Property;
+use PhpParser\Node\Stmt\Trait_;
 use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
 use PHPUnit\Framework\TestCase;
@@ -166,6 +167,62 @@ class DocgenVisitorTest extends TestCase
             new DocgenVisitor(function () {
                 return [];
             }, $changes)
+        );
+
+        $parser = (new ParserFactory())->createForHostVersion();
+        $stmts = $parser->parse($code);
+        $traverser->traverse($stmts);
+
+        $this->assertEmpty($changes);
+    }
+
+    /** @test */
+    public function it_adds_a_docblock_to_a_trait(): void
+    {
+        $code = "<?php\ntrait Logger {}";
+        $changes = [];
+
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(
+            new DocgenVisitor(fn(Node $node) => $node instanceof Trait_ ? ['Trait comment'] : [], $changes)
+        );
+
+        $parser = (new ParserFactory())->createForHostVersion();
+        $stmts = $parser->parse($code);
+        $traverser->traverse($stmts);
+
+        $this->assertCount(1, $changes);
+        $this->assertStringContainsString('Trait comment', $changes[0]->text);
+    }
+
+    /** @test */
+    public function it_updates_an_existing_docblock_for_a_trait(): void
+    {
+        $code = "<?php\n/** Existing doc */\ntrait Logger {}";
+        $changes = [];
+
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(
+            new DocgenVisitor(fn(Node $node) => $node instanceof Trait_ ? ['Updated comment'] : [], $changes)
+        );
+
+        $parser = (new ParserFactory())->createForHostVersion();
+        $stmts = $parser->parse($code);
+        $traverser->traverse($stmts);
+
+        $this->assertCount(1, $changes);
+        $this->assertStringContainsString('Existing doc', $changes[0]->text);
+        $this->assertStringContainsString('Updated comment', $changes[0]->text);
+    }
+    /** @test */
+    public function it_does_nothing_when_no_docblock_changes_are_returned_for_a_trait(): void
+    {
+        $code = "<?php\ntrait Logger {}";
+        $changes = [];
+
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(
+            new DocgenVisitor(fn() => [], $changes)
         );
 
         $parser = (new ParserFactory())->createForHostVersion();
