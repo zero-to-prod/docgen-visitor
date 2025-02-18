@@ -15,30 +15,19 @@ class DocgenVisitor extends NodeVisitorAbstract
 {
     private readonly Closure $callback;
     private array $changes;
-    private readonly array $top_level_declarations;
 
     /**
      * Constructor for DocgenVisitor.
      *
-     * @param  Closure  $callback                A callback function that determines the comment lines for each node.
-     * @param  array    $changes                 Reference to an array where changes will be stored.
-     * @param  array    $top_level_declarations  Determines indentation level for things like classes and traits.
+     * @param  Closure  $callback  A callback function that determines the comment lines for each node.
+     * @param  array    $changes   Reference to an array where changes will be stored.
      *
      * @link https://github.com/zero-to-prod/docgen-visitor
      */
-    public function __construct(
-        Closure $callback,
-        array &$changes,
-        array $top_level_declarations = [
-            Node\Stmt\Class_::class,
-            Node\Stmt\Enum_::class,
-            Node\Stmt\Interface_::class,
-            Node\Stmt\Trait_::class,
-        ]
-    ) {
+    public function __construct(Closure $callback, array &$changes)
+    {
         $this->callback = $callback;
         $this->changes = &$changes;
-        $this->top_level_declarations = $top_level_declarations;
     }
 
     /**
@@ -67,7 +56,16 @@ class DocgenVisitor extends NodeVisitorAbstract
             Change::text => $this->render(
                 $text,
                 $lines,
-                !in_array($node::class, $this->top_level_declarations, true)
+                !in_array(
+                    $node::class,
+                    [
+                        Node\Stmt\Class_::class,
+                        Node\Stmt\Enum_::class,
+                        Node\Stmt\Interface_::class,
+                        Node\Stmt\Trait_::class,
+                    ],
+                    true
+                )
             ),
         ]);
     }
