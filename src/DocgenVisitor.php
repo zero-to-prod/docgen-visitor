@@ -64,7 +64,7 @@ class DocgenVisitor extends NodeVisitorAbstract
         $this->changes[] = Change::from([
             Change::start => $node->getStartFilePos(),
             Change::end => $node->getEndFilePos() - ($text ? 0 : 1),
-            Change::text => $this->renderComment(
+            Change::text => $this->render(
                 $text,
                 $lines,
                 !in_array($node::class, $this->top_level_declarations, true)
@@ -72,7 +72,7 @@ class DocgenVisitor extends NodeVisitorAbstract
         ]);
     }
 
-    private function renderComment(?string $text, array $lines, bool $indent): string
+    private function render(?string $text, array $lines, bool $indent): string
     {
         $asterisk = $indent ? '     * ' : ' * ';
 
