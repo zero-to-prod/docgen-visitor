@@ -43,14 +43,14 @@ class DocgenVisitor extends NodeVisitorAbstract
             return;
         }
 
-        $comment = $node->getDocComment();
+        $Doc = $node->getDocComment();
         $start = $node->getStartFilePos();
 
         $this->changes[] = Change::from([
-            Change::start => $comment ? $comment->getStartFilePos() : $start,
-            Change::end => $comment ? $comment->getEndFilePos() : $start - 1,
+            Change::start => $Doc ? $Doc->getStartFilePos() : $start,
+            Change::end => $Doc ? $Doc->getEndFilePos() : $start - 1,
             Change::text => $this->render(
-                $comment?->getText(),
+                $Doc?->getText(),
                 $lines,
                 !in_array($node::class, [
                     Node\Stmt\Class_::class,
