@@ -7,23 +7,48 @@ use PhpParser\Node;
 use PhpParser\NodeVisitorAbstract;
 
 /**
+ * A PHP AST visitor for automatically generating or updating docblocks in PHP source code.
+ *
  * @link https://github.com/zero-to-prod/docgen-visitor
  */
 class DocgenVisitor extends NodeVisitorAbstract
 {
-    private Closure $callback;
+    private readonly Closure $callback;
     private array $changes;
+    private readonly array $top_level_declarations;
 
     /**
+     * Constructor for DocgenVisitor.
+     *
+     * @param  Closure  $callback                A callback function that determines the comment lines for each node.
+     * @param  array    $changes                 Reference to an array where changes will be stored.
+     * @param  array    $top_level_declarations  Determines indentation level for things like classes and traits.
+     *
      * @link https://github.com/zero-to-prod/docgen-visitor
      */
-    public function __construct(Closure $callback, array &$changes)
-    {
+    public function __construct(
+        Closure $callback,
+        array &$changes,
+        array $top_level_declarations = [
+            Node\Stmt\Class_::class,
+            Node\Stmt\Enum_::class,
+            Node\Stmt\Interface_::class,
+            Node\Stmt\Trait_::class,
+        ]
+    ) {
         $this->callback = $callback;
         $this->changes = &$changes;
+        $this->top_level_declarations = $top_level_declarations;
     }
 
     /**
+     * Processes each node encountered during the AST traversal.
+     *
+     * This method checks if there are comments to add or update for the current node.
+     * If comments exist, it updates them; otherwise, it adds new comments.
+     *
+     * @param  Node  $node  The PHP Parser node being visited.
+     *
      * @link https://github.com/zero-to-prod/docgen-visitor
      */
     public function enterNode(Node $node): void
@@ -34,67 +59,38 @@ class DocgenVisitor extends NodeVisitorAbstract
             return;
         }
 
-        $comment = $node->getDocComment();
-        $start = $node->getStartFilePos();
+        $text = $node->getDocComment()?->getText();
 
-        if ($comment) {
-            $this->changes[] = $this->createChange(
-                $comment->getStartFilePos(),
-                $comment->getEndFilePos(),
-                $this->format($comment->getText(), $lines, $this->shouldIndent($node))
-            );
+        $this->changes[] = Change::from([
+            Change::start => $node->getStartFilePos(),
+            Change::end => $node->getEndFilePos() - ($text ? 0 : 1),
+            Change::text => $this->renderComment(
+                $text,
+                $lines,
+                !in_array($node::class, $this->top_level_declarations, true)
+            ),
+        ]);
+    }
+
+    private function renderComment(?string $text, array $lines, bool $indent): string
+    {
+        $asterisk = $indent ? '     * ' : ' * ';
+
+        if ($text) {
+            $base = str_contains($text, "\n")
+                ? rtrim($text, " */\n")
+                : '/**'."\n".$asterisk.trim(substr($text, 3, -2));
         } else {
-            $this->changes[] = $this->createChange(
-                $start,
-                $start - 1,
-                $this->render($lines, $node)
-            );
+            $base = "/**";
         }
-    }
-
-    private function shouldIndent(Node $node): bool
-    {
-        return !($node instanceof Node\Stmt\Class_ || $node instanceof Node\Stmt\Enum_ || $node instanceof Node\Stmt\Interface_);
-    }
-
-    private function render(array $lines, Node $Node): string
-    {
-        $indent = $this->shouldIndent($Node);
-        $asterisk = $indent ? '     * ' : ' * ';
-        $closing = $indent ? '     */' : ' */';
-        $padding = $indent ? "\n    " : "\n";
-
-        $doc = "/**\n";
-
-        foreach ($lines as $line) {
-            $doc .= "$asterisk$line\n";
-        }
-
-        return $doc.$closing.$padding;
-    }
-
-    private function format($text, $lines, $indent): string
-    {
-        $asterisk = $indent ? '     * ' : ' * ';
-        $closing = $indent ? '     */' : ' */';
-
-        $base = str_contains($text, "\n")
-            ? rtrim($text, " */\n")
-            : '/**'."\n".$asterisk.trim(substr($text, 3, -2));
 
         foreach ($lines as $line) {
             $base .= "\n$asterisk$line";
         }
 
-        return $base."\n$closing";
-    }
+        $closing = $indent ? '     */' : ' */';
+        $padding = $indent ? "\n    " : "\n";
 
-    private function createChange($start, $end, $text): Change
-    {
-        return Change::from([
-            Change::start => $start,
-            Change::end => $end,
-            Change::text => $text,
-        ]);
+        return $base."\n$closing".($text ? '' : $padding);
     }
 }
