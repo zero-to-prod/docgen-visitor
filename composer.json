@@ -32,8 +32,7 @@
     }
   ],
   "require": {
-    "php": ">=8.1",
-    "zero-to-prod/dock": "^1.0"
+    "php": ">=8.1"
   },
   "require-dev": {
     "phpunit/phpunit": "<12.0"
@@ -47,8 +46,5 @@
     "psr-4": {
       "Tests\\": "tests/"
     }
-  },
-  "bin": [
-    "bin/docgen-visitor"
-  ]
+  }
 }
