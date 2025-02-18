@@ -13,9 +13,6 @@ use PhpParser\NodeVisitorAbstract;
  */
 class DocgenVisitor extends NodeVisitorAbstract
 {
-    private readonly Closure $callback;
-    private array $changes;
-
     /**
      * Constructor for DocgenVisitor.
      *
@@ -24,10 +21,8 @@ class DocgenVisitor extends NodeVisitorAbstract
      *
      * @link https://github.com/zero-to-prod/docgen-visitor
      */
-    public function __construct(Closure $callback, array &$changes)
+    public function __construct(private readonly Closure $callback, private array &$changes)
     {
-        $this->callback = $callback;
-        $this->changes = &$changes;
     }
 
     /**
@@ -44,28 +39,25 @@ class DocgenVisitor extends NodeVisitorAbstract
     {
         $lines = ($this->callback)($node);
 
-        if (!is_array($lines) || empty($lines)) {
+        if (empty($lines)) {
             return;
         }
 
-        $text = $node->getDocComment()?->getText();
+        $Doc = $node->getDocComment();
+        $start = $node->getStartFilePos();
 
         $this->changes[] = Change::from([
-            Change::start => $node->getStartFilePos(),
-            Change::end => $node->getEndFilePos() - ($text ? 0 : 1),
+            Change::start => $Doc ? $Doc->getStartFilePos() : $start,
+            Change::end => $Doc ? $Doc->getEndFilePos() : $start - 1,
             Change::text => $this->render(
-                $text,
+                $Doc?->getText(),
                 $lines,
-                !in_array(
-                    $node::class,
-                    [
-                        Node\Stmt\Class_::class,
-                        Node\Stmt\Enum_::class,
-                        Node\Stmt\Interface_::class,
-                        Node\Stmt\Trait_::class,
-                    ],
-                    true
-                )
+                !in_array($node::class, [
+                    Node\Stmt\Class_::class,
+                    Node\Stmt\Enum_::class,
+                    Node\Stmt\Interface_::class,
+                    Node\Stmt\Trait_::class,
+                ], true)
             ),
         ]);
     }
@@ -73,22 +65,21 @@ class DocgenVisitor extends NodeVisitorAbstract
     private function render(?string $text, array $lines, bool $indent): string
     {
         $asterisk = $indent ? '     * ' : ' * ';
+        $closing = $indent ? '     */' : ' */';
 
         if ($text) {
             $base = str_contains($text, "\n")
                 ? rtrim($text, " */\n")
-                : '/**'."\n".$asterisk.trim(substr($text, 3, -2));
-        } else {
-            $base = "/**";
+                : "/**\n$asterisk".trim(substr($text, 3, -2));
+
+            $base .= "\n".implode("\n", array_map(static fn($line) => $asterisk.$line, $lines));
+
+            return "$base\n$closing";
         }
 
-        foreach ($lines as $line) {
-            $base .= "\n$asterisk$line";
-        }
-
-        $closing = $indent ? '     */' : ' */';
+        $content = implode("\n", array_map(static fn($line) => $asterisk.$line, $lines));
         $padding = $indent ? "\n    " : "\n";
 
-        return $base."\n$closing".($text ? '' : $padding);
+        return "/**\n$content\n$closing$padding";
     }
 }
