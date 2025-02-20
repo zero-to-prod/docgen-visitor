@@ -5,6 +5,10 @@ namespace Tests\Unit;
 use PhpParser\Node;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
+use PhpParser\Node\Stmt\Const_;
+use PhpParser\Node\Stmt\Enum_;
+use PhpParser\Node\Stmt\Function_;
+use PhpParser\Node\Stmt\Interface_;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Trait_;
 use PhpParser\NodeTraverser;
@@ -14,210 +18,400 @@ use Zerotoprod\DocgenVisitor\DocgenVisitor;
 
 class DocgenVisitorTest extends TestCase
 {
-    /** @test */
-    public function it_adds_a_new_docblock_to_a_class(): void
-    {
-        $code = "<?php\nclass User {}";
-        $changes = [];
+    private array $nodeTypeMap = [
+        'Class' => Class_::class,
+        'Method' => ClassMethod::class,
+        'Property' => Property::class,
+        'Trait' => Trait_::class,
+        'Interface' => Interface_::class,
+        'Enum' => Enum_::class,
+        'Function' => Function_::class,
+        'Constant' => Const_::class,
+    ];
 
+    /**
+     * @dataProvider provideTestCases
+     */
+    public function test_docgen_visitor(string $originalCode, string $nodeType, array $comments, string $expectedCode): void
+    {
+        $parser = (new ParserFactory())->createForHostVersion();
+        $stmts = $parser->parse($originalCode);
+
+        $changes = [];
         $traverser = new NodeTraverser();
         $traverser->addVisitor(
-            new DocgenVisitor(function (Node $node) {
-                return $node instanceof Class_ ? ['New comment'] : [];
-            }, $changes)
+            new DocgenVisitor(
+                function (Node $node) use ($nodeType, $comments) {
+                    if ($node instanceof $this->nodeTypeMap[$nodeType]) {
+                        return $comments;
+                    }
+                    return [];
+                },
+                $changes
+            )
         );
 
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
         $traverser->traverse($stmts);
 
-        $this->assertCount(1, $changes);
-        $this->assertEquals("/**\n * New comment\n */\n", $changes[0]->text);
+        $updatedCode = $originalCode;
+        usort($changes, static fn($a, $b) => $a->start <=> $b->start);
+
+        foreach ($changes as $change) {
+            $updatedCode = substr_replace(
+                $updatedCode,
+                $change->text,
+                $change->start,
+                $change->end - $change->start + 1
+            );
+        }
+
+        $this->assertEquals($expectedCode, $updatedCode, "Failed asserting that updated code matches expected for $nodeType");
     }
 
-    /** @test */
-    public function it_updates_an_existing_docblock(): void
+    public static function provideTestCases(): array
     {
-        $code = "<?php\n/** Existing */\nclass User {}";
-        $changes = [];
+        return [
+            // Adding new docblocks
+            'Add new docblock to class' => [
+                <<<'PHP'
+                <?php
+                class User {}
+                PHP,
+                'Class',
+                ['New comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * New comment
+                 */
+                class User {}
+                PHP,
+            ],
+            'Add new docblock to method' => [
+                <<<'PHP'
+                <?php
+                class User {
+                    public function getName() {}
+                }
+                PHP,
+                'Method',
+                ['Method comment'],
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Method comment
+                     */
+                    public function getName() {}
+                }
+                PHP,
+            ],
+            'Add new docblock to property' => [
+                <<<'PHP'
+                <?php
+                class User {
+                    public $name;
+                }
+                PHP,
+                'Property',
+                ['Property comment'],
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Property comment
+                     */
+                    public $name;
+                }
+                PHP,
+            ],
+            'Add new docblock to trait' => [
+                <<<'PHP'
+                <?php
+                trait Logger {}
+                PHP,
+                'Trait',
+                ['Trait comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Trait comment
+                 */
+                trait Logger {}
+                PHP,
+            ],
+            'Add new docblock to interface' => [
+                <<<'PHP'
+                <?php
+                interface UserInterface {}
+                PHP,
+                'Interface',
+                ['Interface comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Interface comment
+                 */
+                interface UserInterface {}
+                PHP,
+            ],
+            'Add new docblock to enum' => [
+                <<<'PHP'
+                <?php
+                enum Status {}
+                PHP,
+                'Enum',
+                ['Enum comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Enum comment
+                 */
+                enum Status {}
+                PHP,
+            ],
+            'Add new docblock to function' => [
+                <<<'PHP'
+                <?php
+                function myFunction() {}
+                PHP,
+                'Function',
+                ['Function comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Function comment
+                 */
+                function myFunction() {}
+                PHP,
+            ],
+            'Add new docblock to constant' => [
+                <<<'PHP'
+                <?php
+                const MY_CONST = 1;
+                PHP,
+                'Constant',
+                ['Constant comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Constant comment
+                 */
+                const MY_CONST = 1;
+                PHP,
+            ],
 
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(function (Node $node) {
-                return $node instanceof Class_ ? ['Additional comment'] : [];
-            }, $changes)
-        );
+            // Updating existing docblocks
+            'Update existing docblock on class' => [
+                <<<'PHP'
+                <?php
+                /**
+                 * Existing comment
+                 */
+                class User {}
+                PHP,
+                'Class',
+                ['New comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Existing comment
+                 * New comment
+                 */
+                class User {}
+                PHP,
+            ],
+            'Update existing docblock on method' => [
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Existing comment
+                     */
+                    public function getName() {}
+                }
+                PHP,
+                'Method',
+                ['New comment'],
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Existing comment
+                     * New comment
+                     */
+                    public function getName() {}
+                }
+                PHP,
+            ],
+            'Update single-line docblock on class' => [
+                <<<'PHP'
+                <?php
+                /** Existing comment */
+                class User {}
+                PHP,
+                'Class',
+                ['New comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Existing comment
+                 * New comment
+                 */
+                class User {}
+                PHP,
+            ],
 
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
+            // Multiple lines
+            'Add multiple lines to class' => [
+                <<<'PHP'
+                <?php
+                class User {}
+                PHP,
+                'Class',
+                ['First line', 'Second line'],
+                <<<'PHP'
+                <?php
+                /**
+                 * First line
+                 * Second line
+                 */
+                class User {}
+                PHP,
+            ],
+            'Update with multiple lines on method' => [
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Existing comment
+                     */
+                    public function getName() {}
+                }
+                PHP,
+                'Method',
+                ['First line', 'Second line'],
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Existing comment
+                     * First line
+                     * Second line
+                     */
+                    public function getName() {}
+                }
+                PHP,
+            ],
 
-        $this->assertCount(1, $changes);
-        $this->assertStringContainsString('Existing', $changes[0]->text);
-        $this->assertStringContainsString('Additional comment', $changes[0]->text);
+            // No changes scenarios
+            'No change when empty comments on class' => [
+                <<<'PHP'
+                <?php
+                class User {}
+                PHP,
+                'Class',
+                [],
+                <<<'PHP'
+                <?php
+                class User {}
+                PHP,
+            ],
+            'No change when empty comments with existing docblock' => [
+                <<<'PHP'
+                <?php
+                /**
+                 * Existing comment
+                 */
+                class User {}
+                PHP,
+                'Class',
+                [],
+                <<<'PHP'
+                <?php
+                /**
+                 * Existing comment
+                 */
+                class User {}
+                PHP,
+            ],
+
+            // Edge cases
+            'Multiple nodes with changes (class)' => [
+                <<<'PHP'
+                <?php
+                class User {
+                    public function getName() {}
+                }
+                PHP,
+                'Class',
+                ['Class comment'],
+                <<<'PHP'
+                <?php
+                /**
+                 * Class comment
+                 */
+                class User {
+                    public function getName() {}
+                }
+                PHP,
+            ],
+            'Multiple nodes with method change' => [
+                <<<'PHP'
+                <?php
+                class User {
+                    public function getName() {}
+                }
+                PHP,
+                'Method',
+                ['Method comment'],
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Method comment
+                     */
+                    public function getName() {}
+                }
+                PHP,
+            ],
+            'Nested structure with property and method' => [
+                <<<'PHP'
+                <?php
+                class User {
+                    public $name;
+                    public function getName() {}
+                }
+                PHP,
+                'Property',
+                ['Property comment'],
+                <<<'PHP'
+                <?php
+                class User {
+                    /**
+                     * Property comment
+                     */
+                    public $name;
+                    public function getName() {}
+                }
+                PHP,
+            ],
+        ];
     }
 
-    /** @test */
-    public function it_does_not_add_a_docblock_when_no_changes_are_returned(): void
+    /**
+     * Test that ensures no unnecessary changes are made when traversing nodes without applicable comments.
+     */
+    public function test_no_changes_when_callback_always_returns_empty(): void
     {
-        $code = "<?php\nclass User {}";
-        $changes = [];
+        $code = <<<'PHP'
+        <?php
+        class User {
+            public $name;
+            public function getName() {}
+        }
+        PHP;
 
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(fn() => [], $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertEmpty($changes);
-    }
-
-    /** @test */
-    public function it_adds_a_docblock_to_a_property(): void
-    {
-        $code = "<?php\nclass User { public \$name; }";
-        $changes = [];
-
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(fn(Node $node) => $node instanceof Property ? ['Property comment'] : [], $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertCount(1, $changes);
-        $this->assertStringContainsString('Property comment', $changes[0]->text);
-    }
-
-    /** @test */
-    public function it_adds_a_docblock_to_a_method(): void
-    {
-        $code = "<?php\nclass User { public function getName() {} }";
-        $changes = [];
-
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(fn(Node $node) => $node instanceof ClassMethod ? ['Method comment'] : [], $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertCount(1, $changes);
-        $this->assertStringContainsString('Method comment', $changes[0]->text);
-    }
-
-    /** @test */
-    public function it_handles_multiple_lines_in_comments(): void
-    {
-        $code = "<?php\nclass User {}";
-        $changes = [];
-
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(function (Node $node) {
-                return $node instanceof Class_ ? ["First line", "Second line"] : [];
-            }, $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertCount(1, $changes);
-        $this->assertEquals("/**\n * First line\n * Second line\n */\n", $changes[0]->text);
-    }
-
-    /** @test */
-    public function it_updates_existing_multi_line_docblock(): void
-    {
-        $code = "<?php\n/**\n * Existing comment\n */\nclass User {}";
-        $changes = [];
-
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(function (Node $node) {
-                return $node instanceof Class_ ? ['New comment'] : [];
-            }, $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertCount(1, $changes);
-        $this->assertStringContainsString('Existing comment', $changes[0]->text);
-        $this->assertStringContainsString('New comment', $changes[0]->text);
-    }
-
-    /** @test */
-    public function it_does_nothing_when_no_lines_are_provided(): void
-    {
-        $code = "<?php\nclass User {}";
-        $changes = [];
-
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(function () {
-                return [];
-            }, $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertEmpty($changes);
-    }
-
-    /** @test */
-    public function it_adds_a_docblock_to_a_trait(): void
-    {
-        $code = "<?php\ntrait Logger {}";
-        $changes = [];
-
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(fn(Node $node) => $node instanceof Trait_ ? ['Trait comment'] : [], $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertCount(1, $changes);
-        $this->assertStringContainsString('Trait comment', $changes[0]->text);
-    }
-
-    /** @test */
-    public function it_updates_an_existing_docblock_for_a_trait(): void
-    {
-        $code = "<?php\n/** Existing doc */\ntrait Logger {}";
-        $changes = [];
-
-        $traverser = new NodeTraverser();
-        $traverser->addVisitor(
-            new DocgenVisitor(fn(Node $node) => $node instanceof Trait_ ? ['Updated comment'] : [], $changes)
-        );
-
-        $parser = (new ParserFactory())->createForHostVersion();
-        $stmts = $parser->parse($code);
-        $traverser->traverse($stmts);
-
-        $this->assertCount(1, $changes);
-        $this->assertStringContainsString('Existing doc', $changes[0]->text);
-        $this->assertStringContainsString('Updated comment', $changes[0]->text);
-    }
-    /** @test */
-    public function it_does_nothing_when_no_docblock_changes_are_returned_for_a_trait(): void
-    {
-        $code = "<?php\ntrait Logger {}";
         $changes = [];
 
         $traverser = new NodeTraverser();
