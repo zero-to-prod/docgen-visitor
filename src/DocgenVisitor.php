@@ -57,6 +57,8 @@ class DocgenVisitor extends NodeVisitorAbstract
                     Node\Stmt\Enum_::class,
                     Node\Stmt\Interface_::class,
                     Node\Stmt\Trait_::class,
+                    Node\Stmt\Function_::class,
+                    Node\Stmt\Const_::class,
                 ], true)
             ),
         ]);
@@ -70,8 +72,7 @@ class DocgenVisitor extends NodeVisitorAbstract
         if ($text) {
             $base = str_contains($text, "\n")
                 ? rtrim($text, " */\n")
-                : "/**\n$asterisk".trim(substr($text, 3, -2));
-
+                : "/**\n$asterisk".trim(substr($text, 3, -3));
             $base .= "\n".implode("\n", array_map(static fn($line) => $asterisk.$line, $lines));
 
             return "$base\n$closing";
