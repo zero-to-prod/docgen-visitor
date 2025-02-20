@@ -1,9 +1,16 @@
 <?php
+declare(strict_types=1);
 
 namespace Zerotoprod\DocgenVisitor;
 
 use Closure;
 use PhpParser\Node;
+use PhpParser\Node\Stmt\Class_;
+use PhpParser\Node\Stmt\Const_;
+use PhpParser\Node\Stmt\Enum_;
+use PhpParser\Node\Stmt\Function_;
+use PhpParser\Node\Stmt\Interface_;
+use PhpParser\Node\Stmt\Trait_;
 use PhpParser\NodeVisitorAbstract;
 
 /**
@@ -53,10 +60,12 @@ class DocgenVisitor extends NodeVisitorAbstract
                 $Doc?->getText(),
                 $lines,
                 !in_array($node::class, [
-                    Node\Stmt\Class_::class,
-                    Node\Stmt\Enum_::class,
-                    Node\Stmt\Interface_::class,
-                    Node\Stmt\Trait_::class,
+                    Class_::class,
+                    Enum_::class,
+                    Interface_::class,
+                    Trait_::class,
+                    Function_::class,
+                    Const_::class,
                 ], true)
             ),
         ]);
@@ -70,8 +79,7 @@ class DocgenVisitor extends NodeVisitorAbstract
         if ($text) {
             $base = str_contains($text, "\n")
                 ? rtrim($text, " */\n")
-                : "/**\n$asterisk".trim(substr($text, 3, -2));
-
+                : "/**\n$asterisk".trim(substr($text, 3, -3));
             $base .= "\n".implode("\n", array_map(static fn($line) => $asterisk.$line, $lines));
 
             return "$base\n$closing";

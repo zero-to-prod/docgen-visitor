@@ -3,26 +3,12 @@
 namespace Zerotoprod\DocgenVisitor;
 
 /**
+ * Used for representing changes
+ *
  * @link https://github.com/zero-to-prod/docgen-visitor
  */
 class Change
 {
-
-    /**
-     * @link https://github.com/zero-to-prod/docgen-visitor
-     */
-    public static function from(array $data): self
-    {
-        $self = new self;
-        foreach ($data as $key => $value) {
-            if (property_exists(self::class, $key)) {
-                $self->$key = $value;
-            }
-        }
-
-        return $self;
-    }
-
     /**
      * @link https://github.com/zero-to-prod/docgen-visitor
      */
@@ -47,4 +33,19 @@ class Change
      * @link https://github.com/zero-to-prod/docgen-visitor
      */
     public string $text;
+
+    /**
+     * @link https://github.com/zero-to-prod/docgen-visitor
+     */
+    public static function from(array $data): self
+    {
+        $self = new self;
+        foreach ($data as $key => $value) {
+            if (property_exists(self::class, $key)) {
+                $self->$key = $value;
+            }
+        }
+
+        return $self;
+    }
 }
