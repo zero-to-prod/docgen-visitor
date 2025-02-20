@@ -5,7 +5,6 @@ namespace Zerotoprod\DocgenVisitor;
 /**
  * Used for representing changes
  *
- * @internal
  * @link https://github.com/zero-to-prod/docgen-visitor
  */
 class Change
