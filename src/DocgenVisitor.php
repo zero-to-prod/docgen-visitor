@@ -11,13 +11,14 @@ use PhpParser\Node\Stmt\Enum_;
 use PhpParser\Node\Stmt\Function_;
 use PhpParser\Node\Stmt\Interface_;
 use PhpParser\Node\Stmt\Trait_;
+use PhpParser\NodeVisitorAbstract;
 
 /**
  * A PHP AST visitor for automatically generating or updating docblocks in PHP source code.
  *
  * @link https://github.com/zero-to-prod/docgen-visitor
  */
-class DocgenVisitor extends \PhpParser\NodeVisitorAbstract
+class DocgenVisitor extends NodeVisitorAbstract
 {
     /**
      * Constructor for DocgenVisitor.
