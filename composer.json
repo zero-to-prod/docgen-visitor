@@ -39,6 +39,9 @@
   "require-dev": {
     "phpunit/phpunit": "<12.0"
   },
+  "bin": [
+    "bin/zero-to-prod-docgen-visitor"
+  ],
   "autoload": {
     "psr-4": {
       "Zerotoprod\\DocgenVisitor\\": "src/"
